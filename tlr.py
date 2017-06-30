@@ -335,29 +335,34 @@ def en_router_adv(t1_uuid):
 def en_router_redist(t0_uuid):
     ep="/api/v1/logical-routers/%s/routing/redistribution"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    version=json.loads(conn.text).get('_revision')
     body="""{
-        "bgp_enabled":"true"
-        }"""
-    conn=requests.put(url,verify=False,headers=header,data=body)
+        "bgp_enabled":"true",
+        "_revision": "%s"
+        }"""%version
+    conn1=requests.put(url,verify=False,headers=header,data=body)
     print conn.text
 
 # The function call is to configure "redistribution source", the source option is
 # STATIC,NSX_CONNECTED,NSX_STATIC,TIER0_NAT,TIER1_NAT (no test yet)
 def en_router_redist_rule(t0_uuid,source,name):
-   ep="/api/v1/logical-routers/%s/routing/redistribution/rules"%(t0_uuid)
+    ep="/api/v1/logical-routers/%s/routing/redistribution/rules"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    version=json.loads(conn.text).get('_revision') 
     body="""{
-        "rules": [
-        {
-            "sources": [
-                "%s"
-            ],
-            "destination": "BGP",
-            "display_name": "%s"
-        }
-        ]
-        }"""%(t0_uuid,source,name)
-    conn=requests.put(url,verify=False,headers=header,data=body)
+	 "_revision": %s,
+  	"rules": [
+    	{
+      	"display_name":"%s",
+      	"destination":"BGP",
+      	"sources":["%s"]
+    	}
+  	]
+        }"""%(version,name,source)
+    print body
+    conn1=requests.put(url,verify=False,headers=header,data=body)
     print conn.text
 
 def en_router_bgp_proc(t0_uuid,local_as):

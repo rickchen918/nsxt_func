@@ -10,8 +10,8 @@ modeS="ACTIVE_STANDBY"
 esgid=tlr.esg_id()
 zoneid=tlr.tz_id().get('OVERLAY')
 t0_count=1
-t1_count=10
-lsw_count=3
+t1_count=3
+lsw_count=50
 
 i=0
 while i<t0_count:
@@ -51,6 +51,12 @@ bgproc=tlr.en_router_bgp_proc(t0_id,"65001")
 
 # configure bgp peer to CSR router
 peer=tlr.en_router_bgp_peer(t0_id,"192.168.100.21","65000")
+
+# enable redistribution on T0
+redist=tlr.en_router_redist(t0_id)
+
+# cerate redistribution rule on T0
+tlr.en_router_redist_rule(t0_id,"NSX_STATIC","Test")
 
 # enable T1 router having connected advertisement 
 t1_id=tlr.get_t1_id()
