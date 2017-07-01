@@ -1,3 +1,4 @@
+# viloate way to remove all logical switch and router configuration 
 # Delete logical router ports
 # Delete logical routers 
 # Delete logical switch ports

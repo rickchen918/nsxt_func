@@ -1,13 +1,20 @@
-import requests,json,base64,paramiko,pdb
-#requests.packages.urllib3.disable_warnings()
+# The script is function call for nsxt logical routing topology building. 
+# You can create orchestrator script to call this function script. 
+# It could make work to  look simplification ffrom different function aspect.   
+# The author is Rick Chen, Sr.Soltuion Architect of VMware
 
+import requests,json,base64,paramiko,pdb
+requests.packages.urllib3.disable_warnings()
+
+################# define api call envionment variable  #################
 mgr="192.168.64.186"
 mgruser="admin"
 mgrpasswd="Nicira123$"
 cred=base64.b64encode('%s:%s'%(mgruser,mgrpasswd))
 header={"Authorization":"Basic %s"%cred,"Content-type":"application/json"}
 
-#edge cluster id acquire
+ 
+# edge cluster id retreive 
 def esg_id():
     ep="/api/v1/edge-clusters"
     url="https://"+str(mgr)+str(ep)
@@ -18,6 +25,7 @@ def esg_id():
         z=y.get('id')
         return z
 
+# transport zone id retreive
 def tz_id():
     eptz="/api/v1/transport-zones"
     url="https://"+str(mgr)+str(eptz)
@@ -34,10 +42,11 @@ def tz_id():
 
 ################# create logical router  configuration #################
 
+# create T0 logical router
 def create_lr0(name,type0,mode0,esgid):
-    lr_ep="/api/v1/logical-routers"
-    lr_url="https://"+str(mgr)+str(lr_ep)
-    body00="""{
+    ep="/api/v1/logical-routers"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
             "resource_type": "LogicalRouter",
             "description": "",
             "display_name": "%s",
@@ -51,26 +60,27 @@ def create_lr0(name,type0,mode0,esgid):
              "router_type": "%s",
              "high_availability_mode": "%s"
              }"""%(name,esgid,type0,mode0)
-    conn00=requests.post(lr_url,verify=False,headers=header,data=body00)
-    data00=json.loads(conn00.text)
-    lr00id=data00.get('id')
-    return lr00id
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create T0 logical router port for T1 connectivity 
 def create_lr0_port(lr00id):
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
-    body01="""{
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
             "logical_router_id":"%s",
             "resource_type":"LogicalRouterLinkPortOnTIER0"
               }"""%(lr00id)
-    conn01=requests.post(lr_port_url,verify=False,headers=header,data=body01)
-    data01=json.loads(conn01.text)
-    lr00portid=data01.get('id')
-    return lr00portid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create T0 uplink port to vlan, here is supposed to have only one edge cluster
+# the cluster memner index is the edge number index of edge cluster
 def create_lruplink(lr00id,lswport,subnet,member):
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
     body="""{
         "resource_type": "LogicalRouterUpLinkPort",
         "logical_router_id": "%s",
@@ -90,16 +100,15 @@ def create_lruplink(lr00id,lswport,subnet,member):
                 }
                 ]
         }"""%(lr00id,lswport,member,subnet)
-    conn=requests.post(lr_port_url,verify=False,headers=header,data=body)
-    print conn.text
-    data=json.loads(conn.text)
-    lr10portid=data.get('id')
-    return lr10portid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create t1 logical router
 def create_lr1(name,type1,mode1):
-    lr_ep="/api/v1/logical-routers"
-    lr_url="https://"+str(mgr)+str(lr_ep)
-    body10="""{
+    ep="/api/v1/logical-routers"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
         "resource_type": "LogicalRouter",
         "description": "",
         "display_name": "%s",
@@ -109,15 +118,15 @@ def create_lr1(name,type1,mode1):
         "router_type": "%s",
         "high_availability_mode": "%s"
         }"""%(name,type1,mode1)
-    conn10=requests.post(lr_url,verify=False,headers=header,data=body10)
-    data10=json.loads(conn10.text)
-    lr10id=data10.get('id')
-    return lr10id
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create t1 logical router port to connect T0 
 def create_lr1_port(lr10id,lr00portid):
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
-    body11="""{
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
         "resource_type":"LogicalRouterLinkPortOnTIER1",
         "logical_router_id":"%s",
         "linked_logical_router_port_id": {
@@ -127,15 +136,15 @@ def create_lr1_port(lr10id,lr00portid):
         "target_id": "%s"
          }
         }"""%(lr10id,lr00portid)
-    conn11=requests.post(lr_port_url,verify=False,headers=header,data=body11)
-    data11=json.loads(conn11.text)
-    lr10portid=data11.get('id')
-    return lr10portid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create t1 donwlink port to connect logical switch 
 def create_lrdownlink(lr10id,lswport,subnet):
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
-    body12="""{
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
         "resource_type": "LogicalRouterDownLinkPort",
         "logical_router_id": "%s",
         "linked_logical_switch_port_id":{
@@ -151,56 +160,60 @@ def create_lrdownlink(lr10id,lswport,subnet):
                 }
                 ]
         }"""%(lr10id,lswport,subnet)
-    conn12=requests.post(lr_port_url,verify=False,headers=header,data=body12)
-    data12=json.loads(conn12.text)
-    lr10portid=data12.get('id')
-    return lr10portid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    print conn.text
+    return result
 
 ################# create logical switch configuration #################
 
+# create logical switch for overlay
 def create_lsw(lswname,zoneid):
-    eplsw="/api/v1/logical-switches"
-    url="https://"+str(mgr)+str(eplsw)
-    bodysw="""{
+    ep="/api/v1/logical-switches"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
  	    "transport_zone_id":"%s",
   	    "replication_mode": "MTEP",
              "admin_state":"UP",
              "display_name":"%s"
 	    }"""%(zoneid,lswname)
-    conn=requests.post(url,verify=False,headers=header,data=bodysw)
-    lswid=json.loads(conn.text).get('id')
-    return lswid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create logical switch for vlan
 def create_vlanlsw(lswname,zoneid,vlan):
-    eplsw="/api/v1/logical-switches"
-    url="https://"+str(mgr)+str(eplsw)
-    bodysw="""{
+    ep="/api/v1/logical-switches"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
             "transport_zone_id":"%s",
              "admin_state":"UP",
              "display_name":"%s",
 	     "vlan":"%s"
             }"""%(zoneid,lswname,vlan)
-    conn=requests.post(url,verify=False,headers=header,data=bodysw)
-    lswid=json.loads(conn.text).get('id')
-    return lswid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
+# create logical switch port for t0/t1 router connecting
 def create_lswport(lswid):
-    eplport="/api/v1/logical-ports"
-    url="https://"+str(mgr)+str(eplport)
-    bodylport="""{
+    ep="/api/v1/logical-ports"
+    url="https://"+str(mgr)+str(ep)
+    body="""{
   	"logical_switch_id":"%s",
   	"admin_state":"UP"
 		}"""%(lswid)
-    conn=requests.post(url,verify=False,headers=header,data=bodylport)
-    lportid=json.loads(conn.text).get('id')
-    return lportid
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    result=json.loads(conn.text).get('id')
+    return result
 
 ################# delete tlr configuration #################
 
+# delete logical router
 def delete_lr():
-    lr_ep="/api/v1/logical-routers"
-    lr_url="https://"+str(mgr)+str(lr_ep)
-    conn=requests.get(lr_url,verify=False,headers=header)
+    ep="/api/v1/logical-routers"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     matrix=[]
     for x in result:
@@ -209,13 +222,14 @@ def delete_lr():
 
     for y in matrix:
 	id=y
-	url=lr_url+"/"+id+str("?force=true")
-	conn=requests.delete(url,verify=False,headers=header)
+	url_1=url+"/"+id+str("?force=true")
+	conn=requests.delete(url_1,verify=False,headers=header)
 
+# delete logical router port
 def delete_lrport():
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
-    conn=requests.get(lr_port_url,verify=False,headers=header)
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     matrix=[]
     for x in result:
@@ -224,13 +238,14 @@ def delete_lrport():
 
     for y in matrix:
         id=y
-        url=lr_port_url+"/"+id+str("?force=true")
-        conn=requests.delete(url,verify=False,headers=header)
+        url_1=url+"/"+id+str("?force=true")
+        conn=requests.delete(url_1,verify=False,headers=header)
 
+# delete logical switch 
 def delete_lsw():
-    lsw_ep="/api/v1/logical-switches"
-    lsw_url="https://"+str(mgr)+str(lsw_ep)
-    conn=requests.get(lsw_url,verify=False,headers=header)
+    ep="/api/v1/logical-switches"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     matrix=[]
     for x in result:
@@ -239,14 +254,14 @@ def delete_lsw():
 
     for y in matrix:
         id=y
-        url=lsw_url+"/"+id
-        conn=requests.delete(url,verify=False,headers=header)
-        conn1=requests.get(url,verify=False,headers=header)
+        url_1=url+"/"+id
+        conn=requests.delete(url_1,verify=False,headers=header)
 
+# delete logical swtch port
 def delete_lswport():
-    lsw_port_ep="/api/v1/logical-ports"
-    lsw_port_url="https://"+str(mgr)+str(lsw_port_ep)
-    conn=requests.get(lsw_port_url,verify=False,headers=header)
+    ep="/api/v1/logical-ports"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     matrix=[]
     for x in result:
@@ -255,58 +270,66 @@ def delete_lswport():
 
     for y in matrix:
         id=y
-        url=lsw_port_url+"/"+id
-        conn=requests.delete(url,verify=False,headers=header)
-        conn1=requests.get(url,verify=False,headers=header)
+        url_1=url+"/"+id
+        conn=requests.delete(url_1,verify=False,headers=header)
 
 ################# count tlr configuration #################
 
+# Due to page size is limited on 1000, so if the number of property is over 1K
+# The delete call needs to have another around to clear it. so This function is
+# mainly to  retrive the resount_count and be calculated under orchestrrators script 
+
+# count logical router port
 def lrport_count():
-    lr_port_ep="/api/v1/logical-router-ports"
-    lr_port_url="https://"+str(mgr)+str(lr_port_ep)
-    conn=requests.get(lr_port_url,verify=False,headers=header)
-    count=json.loads(conn.text).get('result_count')
-    return count
-
-def lr_count():
-    lr_ep="/api/v1/logical-routers"
-    lr_url="https://"+str(mgr)+str(lr_ep)
-    conn=requests.get(lr_url,verify=False,headers=header)
-    count=json.loads(conn.text).get('result_count')
-    return count
-
-
-def lswport_count():
-    lsw_port_ep="/api/v1/logical-ports"
-    lsw_port_url="https://"+str(mgr)+str(lsw_port_ep)
-    conn=requests.get(lsw_port_url,verify=False,headers=header)
-    count=json.loads(conn.text).get('result_count')
-    return count
-
-def lsw_count():
-    lsw_port_ep="/api/v1/logical-switches"
-    lsw_port_url="https://"+str(mgr)+str(lsw_port_ep)
-    conn=requests.get(lsw_port_url,verify=False,headers=header)
-    count=json.loads(conn.text).get('result_count')
-    return count
-
+    ep="/api/v1/logical-router-ports"
+    url="https://"+str(mgr)+str(ep)
     conn=requests.get(url,verify=False,headers=header)
-    result=json.loads(conn.text).get('results')
+    count=json.loads(conn.text).get('result_count')
+    return count
+
+# count logical router
+def lr_count():
+    ep="/api/v1/logical-routers"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    count=json.loads(conn.text).get('result_count')
+    return count
+
+# count logical switch port
+def lswport_count():
+    ep="/api/v1/logical-ports"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    count=json.loads(conn.text).get('result_count')
+    return count
+
+# count logical switch 
+def lsw_count():
+    ep="/api/v1/logical-switches"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    count=json.loads(conn.text).get('result_count')
+    return count
+
+    conn_1=requests.get(url,verify=False,headers=header)
+    result=json.loads(conn_1.text).get('results')
 
 ################# get tlr configuration #################
 
+# retrive t0 router id 
 def get_t0_id():
-    t0_ep="/api/v1/logical-routers?router_type=TIER0"
-    url="https://"+str(mgr)+str(t0_ep)
+    ep="/api/v1/logical-routers?router_type=TIER0"
+    url="https://"+str(mgr)+str(ep)
     conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     for t0 in result:
 	id=t0.get('id')
     return id
 
+# retrive t1 router id
 def get_t1_id():
-    t1_ep="/api/v1/logical-routers?router_type=TIER1"
-    url="https://"+str(mgr)+str(t1_ep)
+    ep="/api/v1/logical-routers?router_type=TIER1"
+    url="https://"+str(mgr)+str(ep)
     conn=requests.get(url,verify=False,headers=header)
     result=json.loads(conn.text).get('results')
     matrix=[]
@@ -317,21 +340,24 @@ def get_t1_id():
 
 ################# allocate tlr configuration #################
 
+# enable and configure t1 redistribution
 # this function call is only working for T1, T0 is not supported
 def en_router_adv(t1_uuid):
     ep="/api/v1/logical-routers/%s/routing/advertisement"%(t1_uuid)
     url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    version=json.loads(conn.text).get('_revision')
     body="""{
         "advertise_nsx_connected_routes": true,
         "advertise_static_routes": false,
         "advertise_nat_routes": true,
         "enabled": true,
-	"_revision": "0"
-        }"""
-    conn=requests.put(url,verify=False,headers=header,data=body)
-    print conn.text
+	"_revision": "%s"
+        }"""%version
+    conn1=requests.put(url,verify=False,headers=header,data=body)
+    print conn1
 
-# this function call is to enable the T0 redistribution (not test yet)
+# this function call is to enable the T0 redistribution 
 def en_router_redist(t0_uuid):
     ep="/api/v1/logical-routers/%s/routing/redistribution"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
@@ -345,7 +371,7 @@ def en_router_redist(t0_uuid):
     print conn.text
 
 # The function call is to configure "redistribution source", the source option is
-# STATIC,NSX_CONNECTED,NSX_STATIC,TIER0_NAT,TIER1_NAT (no test yet)
+# STATIC,NSX_CONNECTED,NSX_STATIC,TIER0_NAT,TIER1_NAT 
 def en_router_redist_rule(t0_uuid,source,name):
     ep="/api/v1/logical-routers/%s/routing/redistribution/rules"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
@@ -361,10 +387,10 @@ def en_router_redist_rule(t0_uuid,source,name):
     	}
   	]
         }"""%(version,name,source)
-    print body
     conn1=requests.put(url,verify=False,headers=header,data=body)
     print conn.text
 
+# enable t0 bgp process
 def en_router_bgp_proc(t0_uuid,local_as):
     ep="/api/v1/logical-routers/%s/routing/bgp"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
@@ -379,6 +405,7 @@ def en_router_bgp_proc(t0_uuid,local_as):
     conn=requests.put(url,verify=False,headers=header,data=body)
     print conn.text
 
+# configure bgp peering on t0
 def en_router_bgp_peer(t0_uuid,neig_addr,remo_as):
     ep="/api/v1/logical-routers/%s/routing/bgp/neighbors"%(t0_uuid)
     url="https://"+str(mgr)+str(ep)
@@ -396,3 +423,23 @@ def en_router_bgp_peer(t0_uuid,neig_addr,remo_as):
 	}"""%(neig_addr,remo_as)
     conn=requests.post(url,verify=False,headers=header,data=body)
     print conn.text
+
+################# list tlr configuration #################
+
+def list_t1_router_iif():
+    ep="/api/v1/logical-router-ports?resource_type=LogicalRouterDownLinkPort"
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    result=json.loads(conn.text).get('results')
+    matrix=[]
+    for net in result:
+	subnet=net.get('subnets')
+        matrix.append(subnet)
+    matrix_1=[]
+    for ip in matrix:
+	position=ip[0]
+	ip_addr=position.get('ip_addresses')
+	matrix_1.append(ip_addr)
+    matrix_1.sort()
+    for outcome in matrix_1:
+	print outcome

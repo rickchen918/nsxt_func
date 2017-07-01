@@ -1,3 +1,4 @@
+# import the function call script tlr.py
 # Create T0 router and T0 port for T1 connects
 # Create T1 router and T1 port connects to T0
 # Create Logical switch and Logical switch port
@@ -9,15 +10,19 @@ modeA="ACTIVE_ACTIVE"
 modeS="ACTIVE_STANDBY"
 esgid=tlr.esg_id()
 zoneid=tlr.tz_id().get('OVERLAY')
+# below defines the number of network creation aligns with T0/T1 creation. 
+# Comply with exisitng function specification, just create single T0 router on edge cluster
+# the subnet range creation will be 172.16.(t1_count+lsw_count).1
 t0_count=1
 t1_count=3
-lsw_count=50
+lsw_count=53
 
+# the loop to generate logical router configuration
 i=0
 while i<t0_count:
     t0_rtid=tlr.create_lr0("rkc_t0_"+str(i),"TIER0",modeA,esgid)
     print "creating logical router T0 ",t0_rtid
-    j=0
+    j=1
     while j<t1_count:
         t0_lport=tlr.create_lr0_port(t0_rtid)
 	print "creating T0 logica port for T1 ",t0_lport
@@ -47,9 +52,11 @@ t0_id=tlr.get_t0_id()
 t0_uplink=tlr.create_lruplink(t0_id,lswport,"192.168.100.20","0")
 
 # enable bgp process on T0
+# the 65001 is local bgp as number and configurable 
 bgproc=tlr.en_router_bgp_proc(t0_id,"65001")
 
 # configure bgp peer to CSR router
+# the 65000 is remote bgp as number and configurable
 peer=tlr.en_router_bgp_peer(t0_id,"192.168.100.21","65000")
 
 # enable redistribution on T0
