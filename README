@@ -1,0 +1,7 @@
+This includes the 3 part to generate logical router configuratiom 
+
+- tlr.py: it is function call script, here includes the api endpoint of lab requirement 
+- create_dlr_topo.py: it is the script as the orchestratr to create the T0/T1 attachment and uplink. 
+		      it runs the loop for scale environment simulation
+- clear_dlr_topo.py: after testing, i would like recycle the resource what i build, so this is another
+		     orchestrator script for this goal purpose 
