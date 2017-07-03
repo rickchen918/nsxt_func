@@ -1,4 +1,4 @@
-# The script is function call for nsxt logical routing topology building. 
+	# The script is function call for nsxt logical routing topology building. 
 # You can create orchestrator script to call this function script. 
 # It could make work to  look simplification ffrom different function aspect.   
 # The author is Rick Chen, Sr.Soltuion Architect of VMware
@@ -105,19 +105,20 @@ def create_lruplink(lr00id,lswport,subnet,member):
     return result
 
 # create t1 logical router
-def create_lr1(name,type1,mode1):
+def create_lr1(name,esgid,type1,mode1):
     ep="/api/v1/logical-routers"
     url="https://"+str(mgr)+str(ep)
     body="""{
         "resource_type": "LogicalRouter",
         "description": "",
         "display_name": "%s",
+	"edge_cluster_id": "%s",
         "advanced_config": {
         "internal_transit_network": "169.254.0.0/28"
         },
         "router_type": "%s",
         "high_availability_mode": "%s"
-        }"""%(name,type1,mode1)
+        }"""%(name,esgid,type1,mode1)
     conn=requests.post(url,verify=False,headers=header,data=body)
     result=json.loads(conn.text).get('id')
     return result
@@ -338,7 +339,7 @@ def get_t1_id():
 	matrix.append(id)
     return matrix
 
-################# allocate tlr configuration #################
+################# configure routing configuration #################
 
 # enable and configure t1 redistribution
 # this function call is only working for T1, T0 is not supported
@@ -355,7 +356,7 @@ def en_router_adv(t1_uuid):
 	"_revision": "%s"
         }"""%version
     conn1=requests.put(url,verify=False,headers=header,data=body)
-    print conn1
+    print conn1.text
 
 # this function call is to enable the T0 redistribution 
 def en_router_redist(t0_uuid):
@@ -424,9 +425,23 @@ def en_router_bgp_peer(t0_uuid,neig_addr,remo_as):
     conn=requests.post(url,verify=False,headers=header,data=body)
     print conn.text
 
+# configure snat 
+def snat_all(t1_uuid,source_net,translated_net):
+    ep="/api/v1/logical-routers/%s/nat/rules"%(t1_uuid)
+    url="https://"+str(mgr)+str(ep)
+    body="""{
+	"action": "SNAT",
+    	"match_source_network": "%s",
+    	"translated_network": "%s",
+    	"enabled": true
+	}"""%(source_net,translated_net)
+    conn=requests.post(url,verify=False,headers=header,data=body)
+    print conn.text
+
+
 ################# list tlr configuration #################
 
-def list_t1_router_iif():
+def list_t1_router_lif():
     ep="/api/v1/logical-router-ports?resource_type=LogicalRouterDownLinkPort"
     url="https://"+str(mgr)+str(ep)
     conn=requests.get(url,verify=False,headers=header)
@@ -435,11 +450,13 @@ def list_t1_router_iif():
     for net in result:
 	subnet=net.get('subnets')
         matrix.append(subnet)
+    return matrix
     matrix_1=[]
     for ip in matrix:
 	position=ip[0]
 	ip_addr=position.get('ip_addresses')
 	matrix_1.append(ip_addr)
+	print matrix_1
     matrix_1.sort()
-    for outcome in matrix_1:
-	print outcome
+    return matrix_1
+

@@ -14,8 +14,8 @@ zoneid=tlr.tz_id().get('OVERLAY')
 # Comply with exisitng function specification, just create single T0 router on edge cluster
 # the subnet range creation will be 172.16.(t1_count+lsw_count).1
 t0_count=1
-t1_count=3
-lsw_count=53
+t1_count=20
+lsw_count=3
 
 # the loop to generate logical router configuration
 i=0
@@ -26,7 +26,7 @@ while i<t0_count:
     while j<t1_count:
         t0_lport=tlr.create_lr0_port(t0_rtid)
 	print "creating T0 logica port for T1 ",t0_lport
-        t1_rtid=tlr.create_lr1("rkc_t1_"+str(i)+str(j),"TIER1",modeS)
+        t1_rtid=tlr.create_lr1("rkc_t1_"+str(i)+str(j),esgid,"TIER1",modeS)
         print "creating logical router T1 ",t0_rtid
         t1_lport=tlr.create_lr1_port(t1_rtid,t0_lport)
         print "creating T1 logical port for T0 ",t1_lport
@@ -36,7 +36,7 @@ while i<t0_count:
 	    print "creating logical switch ",lsw
             lswport=tlr.create_lswport(lsw)
 	    print "creating logical switch port ",lswport
-            lrdownlink=tlr.create_lrdownlink(t1_rtid,lswport,"172.16."+str(j)+str(k)+".1")
+            lrdownlink=tlr.create_lrdownlink(t1_rtid,lswport,"172."+str(j)+"."+str(k)+".1")
 	    print "create T1 logical downlink", lrdownlink
             k+=1
         j+=1
@@ -69,3 +69,13 @@ tlr.en_router_redist_rule(t0_id,"NSX_STATIC","Test")
 t1_id=tlr.get_t1_id()
 for run in t1_id:
     tlr.en_router_adv(run)
+
+# enable source nat all on T1 router and T0 only propagate nat route
+#tlr.en_router_redist_rule(t0_id,"TIER1_NAT","Test1")
+length=len(t1_id)
+for run2 in t1_id:
+    source_net="172.0.0.0/8"
+    i=length
+    translated_net="192.168.120.%s/32"%i
+#    tlr.snat_all(run2,source_net,translated_net)
+    length-=1
