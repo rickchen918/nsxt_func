@@ -1,4 +1,4 @@
-	# The script is function call for nsxt logical routing topology building. 
+# The script is function call for nsxt logical routing topology building. 
 # You can create orchestrator script to call this function script. 
 # It could make work to  look simplification ffrom different function aspect.   
 # The author is Rick Chen, Sr.Soltuion Architect of VMware
@@ -438,6 +438,43 @@ def snat_all(t1_uuid,source_net,translated_net):
     conn=requests.post(url,verify=False,headers=header,data=body)
     print conn.text
 
+def en_bfd(t0_uuid,enable,rx_int,tx_int,dead_ml):
+    ep="/api/v1/logical-routers/%s/routing/bfd-config"%(t0_uuid)
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    version=json.loads(conn.text).get('_revision')
+    body="""{
+   "enabled": %s,
+   "receive_interval": %s,
+   "transmit_interval": %s,
+   "declare_dead_multiple": %s,
+   "_revision": %s
+        }"""%(enable,rx_int,tx_int,dead_ml,version)
+    conn1=requests.put(url,verify=False,headers=header,data=body)
+    print conn1.text
+
+def en_router_bgp_peer_bfd(t0_uuid):
+    ep="/api/v1/logical-routers/%s/routing/bgp/neighbors"%(t0_uuid)
+    url="https://"+str(mgr)+str(ep)
+    conn=requests.get(url,verify=False,headers=header)
+    result=json.loads(conn.text).get('results')
+    for data in result:
+        id=data.get('id')
+        neig_addr=data.get('neighbor_address')
+        version=data.get('_revision')
+        neig_as=data.get('remote_as')
+    body="""{
+    "_revision" : "%s",
+    "neighbor_address" : "%s",
+    "remote_as" : "%s",
+    "enable_bfd" : true
+    }"""%(version,neig_addr,neig_as)
+    print body
+    ep1="/api/v1/logical-routers/%s/routing/bgp/neighbors/%s"%(t0_uuid,id)
+    url1="https://"+str(mgr)+str(ep1)
+    print url1
+    conn1=requests.put(url1,verify=False,headers=header,data=body)
+    print conn1.text
 
 ################# list tlr configuration #################
 

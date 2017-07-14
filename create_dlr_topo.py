@@ -47,9 +47,12 @@ while i<t0_count:
 ## attach vlan interface to T0 
 zoneid=tlr.tz_id().get('VLAN')
 vlan_lsw=tlr.create_vlanlsw('vlan_uplink',zoneid,'0')
-lswport=tlr.create_lswport(vlan_lsw)
+lswport0=tlr.create_lswport(vlan_lsw)
+lswport1=tlr.create_lswport(vlan_lsw)
 t0_id=tlr.get_t0_id()
-t0_uplink=tlr.create_lruplink(t0_id,lswport,"192.168.100.20","0")
+t0_uplink0=tlr.create_lruplink(t0_id,lswport0,"192.168.100.20","0")
+t0_uplink1=tlr.create_lruplink(t0_id,lswport1,"192.168.100.23","1")
+
 
 # enable bgp process on T0
 # the 65001 is local bgp as number and configurable 
@@ -58,6 +61,12 @@ bgproc=tlr.en_router_bgp_proc(t0_id,"65001")
 # configure bgp peer to CSR router
 # the 65000 is remote bgp as number and configurable
 peer=tlr.en_router_bgp_peer(t0_id,"192.168.100.21","65000")
+
+# enable bfd on T0
+tlr.en_bfd(t0_id,"true","300","300","3")
+
+# enable bfd on T0 peer
+tlr.en_router_bgp_peer_bfd(t0_id)
 
 # enable redistribution on T0
 redist=tlr.en_router_redist(t0_id)
